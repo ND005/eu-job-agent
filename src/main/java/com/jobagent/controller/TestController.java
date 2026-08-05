@@ -2,6 +2,7 @@ package com.jobagent.controller;
 
 import com.jobagent.common.JobPosting;
 import com.jobagent.common.JobPostingRepository;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
