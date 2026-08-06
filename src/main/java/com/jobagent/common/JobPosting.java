@@ -19,6 +19,19 @@ public class JobPosting {
     private String location;
     private String sourcePortal; // e.g., "Arbeitsagentur", "Adzuna"
     private String jobUrl;
+ // Inside com.jobagent.entity.JobPosting (or com.jobagent.common.JobPosting)
+
+    @Lob
+    @Column(name = "reasoning")
+    private String reasoning;
+
+    public String getReasoning() {
+        return reasoning;
+    }
+
+    public void setReasoning(String reasoning) {
+        this.reasoning = reasoning;
+    }
 
     @Column(columnDefinition = "TEXT")
     private String rawDescription;

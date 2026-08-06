@@ -23,11 +23,13 @@ public class JobMatcherService {
     public JobMatcherService(JobMatcherAgent jobMatcherAgent, JobPostingRepository jobPostingRepository) {
         this.jobMatcherAgent = jobMatcherAgent;
         this.jobPostingRepository = jobPostingRepository;
+        
     }
 
     public int evaluateUnscoredJobs(int limit) {
         // 1. Fetch unscored jobs from DB (Fixes 'unscoredJobs cannot be resolved')
         List<JobPosting> unscoredJobs = jobPostingRepository.findByMatchScoreIsNull(PageRequest.of(0, limit));
+     
         
         int count = 0;
 
@@ -42,12 +44,22 @@ public class JobMatcherService {
                 }
 
                 // Call LLM
-                JobEvaluationResult result = jobMatcherAgent.evaluateJob(description);
+                //JobEvaluationResult result = jobMatcherAgent.evaluateJob(description);
 
                 // Update entity with result
-                if (result != null) {
+               /* if (result != null) {
                     job.setMatchScore(result.getMatchScore());
                     // Save back to database
+                    jobPostingRepository.save(job);
+                    count++;
+                }*/
+                
+             // Inside the evaluateUnscoredJobs loop:
+                JobEvaluationResult result = jobMatcherAgent.evaluateJob(description);
+
+                if (result != null) {
+                    job.setMatchScore(result.getMatchScore());
+                    job.setReasoning(result.getReasoning()); // <-- Save AI explanation
                     jobPostingRepository.save(job);
                     count++;
                 }
