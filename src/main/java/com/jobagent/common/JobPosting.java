@@ -12,26 +12,16 @@ public class JobPosting {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String externalJobId; // Prevents duplicate job scraping
+    private String externalJobId; // Prevents duplicate scraping
 
     private String title;
     private String company;
     private String location;
-    private String sourcePortal; // e.g., "Arbeitsagentur", "Adzuna"
+    private String sourcePortal; // e.g., "Indeed DE", "WorkInLuxembourg"
     private String jobUrl;
- // Inside com.jobagent.entity.JobPosting (or com.jobagent.common.JobPosting)
 
-    @Lob
-    @Column(name = "reasoning")
+    @Column(columnDefinition = "TEXT")
     private String reasoning;
-
-    public String getReasoning() {
-        return reasoning;
-    }
-
-    public void setReasoning(String reasoning) {
-        this.reasoning = reasoning;
-    }
 
     @Column(columnDefinition = "TEXT")
     private String rawDescription;
@@ -41,6 +31,11 @@ public class JobPosting {
     
     private LocalDateTime postedAt;
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToOne(mappedBy = "jobPosting", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private JobApplication jobApplication;
+
+    public JobPosting() {}
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -64,6 +59,9 @@ public class JobPosting {
     public String getJobUrl() { return jobUrl; }
     public void setJobUrl(String jobUrl) { this.jobUrl = jobUrl; }
 
+    public String getReasoning() { return reasoning; }
+    public void setReasoning(String reasoning) { this.reasoning = reasoning; }
+
     public String getRawDescription() { return rawDescription; }
     public void setRawDescription(String rawDescription) { this.rawDescription = rawDescription; }
 
@@ -78,4 +76,7 @@ public class JobPosting {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public JobApplication getJobApplication() { return jobApplication; }
+    public void setJobApplication(JobApplication jobApplication) { this.jobApplication = jobApplication; }
 }

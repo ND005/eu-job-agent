@@ -2,175 +2,71 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>EU Job Agent - Dynamic Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Job Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="bg-slate-50 font-sans text-slate-800">
+<body>
+<div th:replace="~{fragments/header :: navbar}"></div>
 
-    <!-- Header -->
-    <div class="bg-slate-900 text-white py-4 px-8 flex flex-col md:flex-row justify-between items-center shadow-lg gap-4">
-        <div>
-            <h1 class="text-2xl font-bold tracking-wide flex items-center gap-2">
-                🤖 EU Job Agent 
-                <span class="text-xs font-normal bg-indigo-500/30 text-indigo-200 px-2.5 py-0.5 rounded-full border border-indigo-400/30">v1.2</span>
-            </h1>
-            <p class="text-xs text-slate-400 mt-0.5">Automated Matcher for Senior SDET & Quality Automation Roles</p>
-        </div>
-        <div class="flex items-center gap-3">
-            <button onclick="runMatching()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-lg text-sm shadow-md transition flex items-center gap-2">
-                <span>⚡ Evaluate Unscored Jobs</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Main Content Area -->
-    <div class="max-w-7xl mx-auto p-6">
-
-        <!-- Interactive Filter Control Bar -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 mb-8">
-            <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Interactive Filters</div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                
-                <!-- Search Box -->
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Search Keyword</label>
-                    <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Title, company, or portal..." 
-                           class="w-full text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                </div>
-
-                <!-- Minimum Match Score Slider -->
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-semibold text-slate-600">Min Score</label>
-                        <span id="scoreVal" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">0%</span>
-                    </div>
-                    <input type="range" id="scoreRange" min="0" max="100" value="0" step="5" oninput="updateScoreLabel(this.value); applyFilters();" 
-                           class="w-full accent-indigo-600 cursor-pointer mt-2">
-                </div>
-
-                <!-- Visa Sponsorship Toggle -->
-                <div class="flex items-end pb-1">
-                    <label class="flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-slate-700">
-                        <input type="checkbox" id="visaCheckbox" onchange="applyFilters()" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
-                        <span>Visa Sponsorship Only 🛂</span>
-                    </label>
-                </div>
-
-                <!-- Active Count Display -->
-                <div class="flex items-end justify-start sm:justify-end">
-                    <span id="visibleCount" class="text-xs font-bold bg-slate-100 text-slate-600 px-3.5 py-2 rounded-lg border border-slate-200" th:text="${#lists.size(jobs)} + ' / ' + ${#lists.size(jobs)} + ' Showing'">
-                        0 Showing
-                    </span>
+<div class="container">
+    <!-- Metric Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Jobs Scraped</h5>
+                    <h2 class="card-text" th:text="${totalScraped}">0</h2>
                 </div>
             </div>
         </div>
-
-        <!-- Job Cards Grid -->
-        <div id="jobGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div th:each="job : ${jobs}" 
-                 class="job-card bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between hover:shadow-md transition"
-                 th:data-title="${#strings.toLowerCase(job.title)}"
-                 th:data-company="${#strings.toLowerCase(job.company)}"
-                 th:data-portal="${#strings.toLowerCase(job.sourcePortal)}"
-                 th:data-score="${job.matchScore != null ? job.matchScore : -1}"
-                 th:data-visa="${job.visaSponsorship}">
-                
-                <div>
-                    <!-- Header Line: Title & Dynamic Badge -->
-                    <div class="flex justify-between items-start gap-2 mb-2">
-                        <h3 class="font-bold text-base text-slate-900 leading-snug" th:text="${job.title}">Job Title</h3>
-                        
-                        <span th:if="${job.matchScore != null}" 
-                              th:classappend="${job.matchScore >= 70} ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : (${job.matchScore >= 40} ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-300')"
-                              class="px-2.5 py-1 text-xs font-bold rounded-full border whitespace-nowrap"
-                              th:text="${job.matchScore} + '% Match'">
-                        </span>
-                        <span th:if="${job.matchScore == null}" class="bg-slate-100 text-slate-500 text-xs px-2.5 py-1 rounded-full border border-slate-200 font-medium">
-                            Unscored
-                        </span>
-                    </div>
-
-                    <!-- Company & Meta Details -->
-                    <p class="text-sm font-semibold text-indigo-600 mb-1" th:text="${job.company}">Company</p>
-                    <p class="text-xs text-slate-500 mb-4 flex items-center gap-1.5 flex-wrap">
-                        📍 <span th:text="${job.location}">Location</span>
-                        <span>•</span>
-                        <span>Portal: <strong class="text-slate-700" th:text="${job.sourcePortal}">Arbeitnow</strong></span>
-                    </p>
-
-                    <!-- AI Breakdown Section -->
-                    <div th:if="${job.reasoning != null}" class="mb-4 bg-slate-50 rounded-xl p-3 border border-slate-200/60">
-                        <div class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 mb-1 flex items-center gap-1">
-                            <span>🧠 AI Evaluation Rationale</span>
-                        </div>
-                        <p class="text-xs text-slate-600 leading-relaxed italic" th:text="${job.reasoning}">
-                            No evaluation breakdown available yet.
-                        </p>
-                    </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Applied Jobs</h5>
+                    <h2 class="card-text" th:text="${totalApplied}">0</h2>
                 </div>
-
-                <!-- Footer Card Actions -->
-                <div class="pt-3 border-t border-slate-100 flex justify-between items-center mt-2">
-                    <span th:if="${job.visaSponsorship}" class="text-[11px] bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full font-medium border border-blue-200">
-                        🛂 Visa Sponsorship
-                    </span>
-                    <span th:if="${!job.visaSponsorship}"></span>
-
-                    <a th:if="${job.jobUrl != null}" th:href="${job.jobUrl}" target="_blank" class="text-xs text-indigo-600 font-semibold hover:text-indigo-800 hover:underline flex items-center gap-1">
-                        View Posting ↗
-                    </a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Replies Received</h5>
+                    <h2 class="card-text" th:text="${totalReplies}">0</h2>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Scripting for Real-Time Client-Side Filtering -->
-    <script th:inline="javascript">
-        const totalJobsCount = /*[[${#lists.size(jobs)}]]*/ 0;
-
-        function updateScoreLabel(val) {
-            document.getElementById('scoreVal').innerText = val + '%';
-        }
-
-        function applyFilters() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const minScore = parseInt(document.getElementById('scoreRange').value, 10);
-            const visaOnly = document.getElementById('visaCheckbox').checked;
-
-            const cards = document.querySelectorAll('.job-card');
-            let visibleCount = 0;
-
-            cards.forEach(card => {
-                const title = card.getAttribute('data-title') || '';
-                const company = card.getAttribute('data-company') || '';
-                const portal = card.getAttribute('data-portal') || '';
-                const score = parseInt(card.getAttribute('data-score'), 10);
-                const visa = card.getAttribute('data-visa') === 'true';
-
-                const matchesSearch = title.includes(query) || company.includes(query) || portal.includes(query);
-                const matchesScore = (minScore === 0) || (score >= minScore);
-                const matchesVisa = !visaOnly || visa;
-
-                if (matchesSearch && matchesScore && matchesVisa) {
-                    card.style.display = 'flex';
-                    visibleCount++;
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-
-            document.getElementById('visibleCount').innerText = `${visibleCount} / ${totalJobsCount} Showing`;
-        }
-
-        function runMatching() {
-            fetch('/api/jobs/match?limit=5', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    alert('Matching completed! Evaluated ' + data.jobsEvaluated + ' jobs.');
-                    window.location.reload();
-                })
-                .catch(err => alert('Error running matcher: ' + err));
-        }
-    </script>
+    <h3>All Discovered Listings</h3>
+    <table class="table table-striped table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Title</th>
+                <th>Company</th>
+                <th>Location</th>
+                <th>Source</th>
+                <th>Match Score</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="job : ${jobs}">
+                <td th:text="${job.title}">Senior SDET</td>
+                <td th:text="${job.company}">Company</td>
+                <td th:text="${job.location}">Germany</td>
+                <td><span class="badge bg-secondary" th:text="${job.sourcePortal}">Indeed DE</span></td>
+                <td><span class="badge bg-success" th:text="${job.matchScore + '%'}">85%</span></td>
+                <td>
+                    <a th:href="${job.jobUrl}" target="_blank" class="btn btn-sm btn-outline-primary">View Listing</a>
+                    <form th:action="@{/applications/track}" method="post" class="d-inline" th:if="${job.jobApplication == null}">
+                        <input type="hidden" name="jobId" th:value="${job.id}">
+                        <button type="submit" class="btn btn-sm btn-success">+ Mark Applied</button>
+                    </form>
+                    <span th:if="${job.jobApplication != null}" class="badge bg-info text-dark">Tracked</span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 </body>
 </html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Templates</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<div class="container">
+    <h2>📄 Application Templates</h2>
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-dark text-white fw-bold">German Tech CV (Lebenslauf)</div>
+                <div class="card-body">
+                    <p class="card-text">Tailored for SDET / Test Automation Lead roles in Germany.</p>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText('Lebenslauf Content...')">Copy Template</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-dark text-white fw-bold">English Cover Letter (DACH Region)</div>
+                <div class="card-body">
+                    <p class="card-text">Direct cold outreach template for German/Luxembourg hiring managers.</p>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText('Cover Letter Content...')">Copy Template</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

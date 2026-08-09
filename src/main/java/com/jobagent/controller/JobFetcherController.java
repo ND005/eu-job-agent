@@ -1,11 +1,13 @@
 package com.jobagent.controller;
 
-import com.jobagent.fetcher.ArbeitnowFetcherService;
+import com.jobagent.common.JobPosting;
+import com.jobagent.fetcher.ArbeitnowFetcherService; // Ensure package path matches your project
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -20,10 +22,11 @@ public class JobFetcherController {
 
     @PostMapping("/fetch")
     public ResponseEntity<Map<String, Object>> fetchJobs() {
-        int newJobs = fetcherService.fetchAndSaveJobs();
+        List<JobPosting> newJobsList = fetcherService.fetchAndSaveJobs();
+        
         return ResponseEntity.ok(Map.of(
             "message", "Job ingestion completed successfully",
-            "newJobsSaved", newJobs
+            "newJobsSaved", newJobsList.size()
         ));
     }
 }

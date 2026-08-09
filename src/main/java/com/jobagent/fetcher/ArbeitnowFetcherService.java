@@ -3,58 +3,89 @@ package com.jobagent.fetcher;
 import com.jobagent.common.JobPosting;
 import com.jobagent.common.JobPostingRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ArbeitnowFetcherService {
 
-    private final JobPostingRepository repository;
-    private final RestClient restClient;
+    private final JobPostingRepository jobPostingRepository;
+    private final RestTemplate restTemplate;
 
-    public ArbeitnowFetcherService(JobPostingRepository repository) {
-        this.repository = repository;
-        this.restClient = RestClient.create();
+    private static final String ARBEITNOW_API_URL = "https://www.arbeitnow.com/api/job-board-api";
+
+    public ArbeitnowFetcherService(JobPostingRepository jobPostingRepository) {
+        this.jobPostingRepository = jobPostingRepository;
+        this.restTemplate = new RestTemplate();
     }
 
-    public int fetchAndSaveJobs() {
-        String apiUrl = "https://www.arbeitnow.com/api/job-board-api";
+    /**
+     * Fetches job listings from Arbeitnow API and performs batch duplicate checking
+     * to prevent primary key / unique constraint violations in SQLite.
+     */
+    @Transactional
+    public List<JobPosting> fetchAndSaveJobs() {
+        Map<String, Object> response = restTemplate.getForObject(ARBEITNOW_API_URL, Map.class);
 
-        ArbeitnowResponseDto response = restClient.get()
-                .uri(apiUrl)
-                .retrieve()
-                .body(ArbeitnowResponseDto.class);
-
-        if (response == null || response.getData() == null) {
-            return 0;
+        if (response == null || !response.containsKey("data")) {
+            return Collections.emptyList();
         }
 
-        int newJobsSaved = 0;
+        List<Map<String, Object>> rawJobs = (List<Map<String, Object>>) response.get("data");
+        List<JobPosting> scrapedJobs = new ArrayList<>();
 
-        for (ArbeitnowJobDto dto : response.getData()) {
-            // De-duplication check using unique slug
-            if (!repository.existsByExternalJobId(dto.getSlug())) {
-                JobPosting job = new JobPosting();
-                job.setExternalJobId(dto.getSlug());
-                job.setTitle(dto.getTitle());
-                job.setCompany(dto.getCompanyName());
-                job.setLocation(dto.getLocation());
-                job.setSourcePortal("Arbeitnow");
-                job.setJobUrl(dto.getUrl());
-                job.setRawDescription(dto.getDescription());
-                
-                // Set visa status if specified
-                boolean hasVisaSupport = "true".equalsIgnoreCase(dto.getVisaSponsorship());
-                job.setVisaSponsorship(hasVisaSupport);
-                
+        for (Map<String, Object> rawJob : rawJobs) {
+            String slug = (String) rawJob.get("slug");
+            if (slug == null || slug.isBlank()) continue;
+
+            JobPosting job = new JobPosting();
+            job.setExternalJobId("arbeitnow-" + slug);
+            job.setTitle((String) rawJob.get("title"));
+            job.setCompany((String) rawJob.get("company_name"));
+            job.setLocation((String) rawJob.get("location"));
+            job.setSourcePortal("Arbeitnow");
+            job.setJobUrl((String) rawJob.get("url"));
+            job.setRawDescription((String) rawJob.get("description"));
+
+            // Check visa sponsorship indicator if present
+            Boolean visa = (Boolean) rawJob.get("visa");
+            job.setVisaSponsorship(visa != null ? visa : false);
+
+            // Parse timestamp
+            Number createdAtEpoch = (Number) rawJob.get("created_at");
+            if (createdAtEpoch != null) {
+                job.setPostedAt(LocalDateTime.ofInstant(
+                        Instant.ofEpochSecond(createdAtEpoch.longValue()), 
+                        ZoneId.systemDefault()
+                ));
+            } else {
                 job.setPostedAt(LocalDateTime.now());
-
-                repository.save(job);
-                newJobsSaved++;
             }
+
+            scrapedJobs.add(job);
         }
 
-        return newJobsSaved;
+        // --- Optimized Batch Check to avoid SQLite duplicates ---
+        Set<String> incomingIds = scrapedJobs.stream()
+                .map(JobPosting::getExternalJobId)
+                .collect(Collectors.toSet());
+
+        Set<String> existingIds = jobPostingRepository.findExistingExternalIds(incomingIds);
+
+        List<JobPosting> newJobsToSave = scrapedJobs.stream()
+                .filter(job -> !existingIds.contains(job.getExternalJobId()))
+                .collect(Collectors.toList());
+
+        if (!newJobsToSave.isEmpty()) {
+            return jobPostingRepository.saveAll(newJobsToSave);
+        }
+
+        return Collections.emptyList();
     }
 }

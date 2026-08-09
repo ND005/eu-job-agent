@@ -1,80 +1,76 @@
 package com.jobagent.matcher;
-
 import com.jobagent.common.JobPosting;
 import com.jobagent.common.JobPostingRepository;
-// Make sure this matches your actual entity package!
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 public class JobMatcherService {
 
-    private static final Logger log = LoggerFactory.getLogger(JobMatcherService.class);
-
-    private final JobMatcherAgent jobMatcherAgent;
     private final JobPostingRepository jobPostingRepository;
 
-    // Inject both the LLM agent and the database repository
-    public JobMatcherService(JobMatcherAgent jobMatcherAgent, JobPostingRepository jobPostingRepository) {
-        this.jobMatcherAgent = jobMatcherAgent;
+    public JobMatcherService(JobPostingRepository jobPostingRepository) {
         this.jobPostingRepository = jobPostingRepository;
-        
     }
 
-    public int evaluateUnscoredJobs(int limit) {
-        // 1. Fetch unscored jobs from DB (Fixes 'unscoredJobs cannot be resolved')
-        List<JobPosting> unscoredJobs = jobPostingRepository.findByMatchScoreIsNull(PageRequest.of(0, limit));
-     
-        
-        int count = 0;
+    /**
+     * Evaluates all un-scored job postings in the database, calculates a match score,
+     * and saves the updated postings.
+     */
+    @Transactional
+    public List<JobPosting> processAndScoreJobs() {
+        List<JobPosting> allJobs = jobPostingRepository.findAll();
 
-        // 2. Loop through the fetched list
-        for (JobPosting job : unscoredJobs) {
-            try {
-                String description = job.getRawDescription();
+        for (JobPosting job : allJobs) {
+            // Only calculate match score if it hasn't been set yet
+            if (job.getMatchScore() == null) {
+                int score = calculateMatchScore(job);
+                job.setMatchScore(score);
                 
-                // Truncate raw description to save tokens
-                if (description != null && description.length() > 3000) {
-                    description = description.substring(0, 3000);
+                // Add automated reasoning based on the score
+                if (score >= 80) {
+                    job.setReasoning("High alignment with your target skills and preferences.");
+                } else if (score >= 50) {
+                    job.setReasoning("Moderate alignment. Review requirements manually.");
+                } else {
+                    job.setReasoning("Low match score. May require additional qualification checks.");
                 }
-
-                // Call LLM
-                //JobEvaluationResult result = jobMatcherAgent.evaluateJob(description);
-
-                // Update entity with result
-               /* if (result != null) {
-                    job.setMatchScore(result.getMatchScore());
-                    // Save back to database
-                    jobPostingRepository.save(job);
-                    count++;
-                }*/
-                
-             // Inside the evaluateUnscoredJobs loop:
-                JobEvaluationResult result = jobMatcherAgent.evaluateJob(description);
-
-                if (result != null) {
-                    job.setMatchScore(result.getMatchScore());
-                    job.setReasoning(result.getReasoning()); // <-- Save AI explanation
-                    jobPostingRepository.save(job);
-                    count++;
-                }
-
-                // Pause for 4 seconds to stay under Groq TPM rate limits
-                Thread.sleep(4000);
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            } catch (Exception e) {
-                log.error("Error evaluating job ID {}: {}", job.getId(), e.getMessage());
             }
         }
-        
-        return count;
+
+        return jobPostingRepository.saveAll(allJobs);
+    }
+
+    /**
+     * Rules-based heuristic engine for calculating match percentage.
+     */
+    private int calculateMatchScore(JobPosting job) {
+        int score = 50; // Base score
+
+        String title = job.getTitle() != null ? job.getTitle().toLowerCase() : "";
+        String description = job.getRawDescription() != null ? job.getRawDescription().toLowerCase() : "";
+
+        // Keyword checks for target roles
+        if (title.contains("sdet") || title.contains("automation") || title.contains("quality engineer")) {
+            score += 25;
+        } else if (title.contains("qa") || title.contains("test")) {
+            score += 15;
+        }
+
+        // Framework and language checks
+        if (description.contains("selenium") || description.contains("playwright") || description.contains("appium")) {
+            score += 10;
+        }
+        if (description.contains("java") || description.contains("c#")) {
+            score += 10;
+        }
+        if (description.contains("jenkins") || description.contains("cicd") || description.contains("ci/cd")) {
+            score += 5;
+        }
+
+        // Cap score at 100
+        return Math.min(score, 100);
     }
 }

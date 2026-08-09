@@ -1,9 +1,12 @@
 package com.jobagent.scheduler;
 
+import com.jobagent.common.JobPosting;
 import com.jobagent.fetcher.ArbeitnowFetcherService;
 import com.jobagent.matcher.JobMatcherService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class JobAgentScheduler {
@@ -17,23 +20,17 @@ public class JobAgentScheduler {
     }
 
     /**
-     * Runs 10 seconds after application startup,
-     * then executes automatically every 6 hours (21,600,000 ms).
+     * Automatically fetches new jobs every 6 hours
      */
-    @Scheduled(initialDelay = 10000, fixedRate = 21600000)
-    public void runAutomatedPipeline() {
-        System.out.println("⏰ [Scheduler] Starting automated job fetch & evaluation pipeline...");
-        
-        try {
-            int newJobs = fetcherService.fetchAndSaveJobs();
-            System.out.println("⏰ [Scheduler] Fetch complete. Ingested new postings: " + newJobs);
-            
-            int scoredJobs = matcherService.evaluateUnscoredJobs(10);
-            System.out.println("⏰ [Scheduler] Evaluation complete. Scored jobs: " + scoredJobs);
-            
-            System.out.println("✅ [Scheduler] Pipeline run finished successfully!");
-        } catch (Exception e) {
-            System.err.println("❌ [Scheduler] Error during scheduled execution: " + e.getMessage());
+    @Scheduled(cron = "0 0 */6 * * *")
+    public void runJobIngestion() {
+        List<JobPosting> newlySavedJobs = fetcherService.fetchAndSaveJobs();
+        System.out.println("[Scheduler] Ingestion completed. Saved " + newlySavedJobs.size() + " new jobs.");
+
+        // Automatically run scoring engine for newly ingested jobs
+        if (!newlySavedJobs.isEmpty()) {
+            List<JobPosting> scoredJobs = matcherService.processAndScoreJobs();
+            System.out.println("[Scheduler] Scoring completed for " + scoredJobs.size() + " total jobs.");
         }
     }
 }
