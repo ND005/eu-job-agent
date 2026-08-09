@@ -4,7 +4,6 @@ import com.jobagent.common.JobPosting;
 import com.jobagent.common.JobPostingRepository;
 import com.jobagent.drafter.ApplicationDraft;
 import com.jobagent.drafter.ApplicationDrafterService;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
